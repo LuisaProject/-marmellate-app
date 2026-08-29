@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Marmellate">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#7F77DD">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🫙</text></svg>">
+<title>Le mie marmellate</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-datalabels/2.2.0/chartjs-plugin-datalabels.min.js"></script>
+<style>
+:root{
+  --bg:#FAF7F1;
+  --surface:#FFFFFF;
+  --surface-alt:#F2EDE2;
+  --border:#E4DBC9;
+  --border-strong:#CBBB9E;
+  --text:#2C2620;
+  --text-secondary:#6E6353;
+  --text-muted:#9C917B;
+  --danger-bg:#FBEAE7;
+  --danger-text:#B23A2E;
+  --warning-bg:#FCF2D9;
+  --warning-text:#8A5A0A;
+  --success-bg:#EAF2DD;
+  --success-text:#3E6A12;
+  --accent:#7F77DD;
+  --radius:14px;
+  --radius-sm:9px;
+  color-scheme: light;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:860px; margin:0 auto; padding:20px 16px 60px;}
+h1{font-size:22px; font-weight:700; margin:0 0 2px; display:flex; align-items:center; gap:8px;}
+.subtitle{font-size:13px; color:var(--text-muted); margin:0 0 24px;}
+.section-title{font-size:13px; color:var(--text-secondary); font-weight:600; margin:0;}
+.section-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px;}
+.card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:14px;}
+.panel{background:var(--surface-alt); border-radius:var(--radius); padding:12px 14px;}
+button{
+  font-family:inherit; font-size:13px; font-weight:500; cursor:pointer;
+  background:var(--surface); border:1px solid var(--border-strong); border-radius:999px;
+  padding:8px 14px; color:var(--text); display:inline-flex; align-items:center; gap:6px;
+  transition:background .15s;
+}
+button:hover{background:var(--surface-alt);}
+button.primary{background:var(--accent); border-color:var(--accent); color:#fff;}
+button.primary:hover{opacity:.9;}
+button.ghost{background:transparent; border-color:transparent; padding:6px 8px;}
+button.icon-btn{padding:6px; border-radius:8px; background:transparent; border-color:transparent; color:var(--text-muted);}
+button.icon-btn:hover{background:var(--surface-alt); color:var(--text);}
+button.icon-btn.danger:hover{color:var(--danger-text);}
+input,select{
+  font-family:inherit; font-size:13px; padding:7px 9px; border-radius:8px;
+  border:1px solid var(--border-strong); background:var(--surface); color:var(--text); width:100%;
+}
+.field{display:flex; flex-direction:column; gap:3px;}
+.field-lbl{font-size:10px; color:var(--text-muted); text-transform:uppercase; letter-spacing:.02em;}
+.form-row{display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;}
+.swatch{width:22px; height:22px; border-radius:50%; cursor:pointer; border:2px solid transparent; flex-shrink:0;}
+.swatch.active{border-color:var(--text);}
+.dot{width:10px; height:10px; border-radius:50%; flex-shrink:0;}
+.lotto-row{display:flex; align-items:center; gap:10px; padding:9px 4px; border-bottom:1px solid var(--border); font-size:13px; flex-wrap:wrap;}
+.lotto-row:last-child{border-bottom:none;}
+.pill{font-size:11px; font-weight:500; padding:3px 10px; border-radius:999px; width:fit-content;}
+.jar-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px;}
+.jar-card{background:var(--surface); border:1px solid var(--border); border-top:3px solid var(--card-accent,var(--border)); border-radius:var(--radius); padding:14px; display:flex; flex-direction:column; gap:8px;}
+.jar-head{display:flex; align-items:center; justify-content:space-between; gap:8px;}
+.confirm-box{background:var(--danger-bg); color:var(--danger-text); border-radius:var(--radius-sm); padding:9px 10px; font-size:12px; display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;}
+.confirm-box button{font-size:12px; padding:5px 10px; background:#fff;}
+.notice{border-radius:var(--radius-sm); padding:10px 12px; font-size:13px; margin-bottom:12px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;}
+.notice.info{background:var(--surface-alt); color:var(--text-muted);}
+.notice.success{background:var(--success-bg); color:var(--success-text);}
+.notice.warning{background:var(--warning-bg); color:var(--warning-text);}
+.notice.danger{background:var(--danger-bg); color:var(--danger-text);}
+.notice button{font-size:12px; padding:5px 10px; background:#fff;}
+.chart-title{font-size:12px; color:var(--text-muted); text-align:center; margin:0 0 4px;}
+.charts-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:16px;}
+.chart-box{position:relative; height:150px;}
+.big-chart-box{position:relative; height:190px;}
+.storico-controls{display:flex; gap:6px; align-items:center; flex-wrap:wrap;}
+.storico-controls select{width:auto;}
+.top-actions{display:flex; gap:6px; flex-wrap:wrap;}
+.divider{border-top:1px solid var(--border); margin:28px 0 20px;}
+.save-status{position:fixed; bottom:14px; right:14px; font-size:12px; background:var(--surface); border:1px solid var(--border); border-radius:999px; padding:6px 12px; color:var(--text-muted); box-shadow:0 2px 10px rgba(0,0,0,.08); display:flex; align-items:center; gap:6px; z-index:50;}
+.save-status.saved{color:var(--success-text);}
+.save-status.error{color:var(--danger-text);}
+.footer-link{font-size:11px; color:var(--text-muted); text-decoration:underline; cursor:pointer; background:none; border:none; padding:0;}
+#setup-screen{max-width:420px; margin:60px auto; padding:0 16px;}
+#setup-screen .card{padding:24px;}
+#setup-screen .field{margin-bottom:14px;}
+.helptext{font-size:12px; color:var(--text-muted); margin:2px 0 0;}
+.hidden{display:none !important;}
+</style>
+</head>
+<body>
+
+<div id="setup-screen">
+  <h1>🫙 Le mie marmellate</h1>
+  <p class="subtitle">Collega il repository GitHub dove verranno salvati i dati.</p>
+  <div class="card">
+    <div class="field">
+      <label class="field-lbl">Nome utente GitHub</label>
+      <input type="text" id="cfg-owner" placeholder="es. mariarossi">
+    </div>
+    <div class="field">
+      <label class="field-lbl">Nome del repository</label>
+      <input type="text" id="cfg-repo" placeholder="es. marmellate-app">
+    </div>
+    <div class="field">
+      <label class="field-lbl">Token di accesso</label>
+      <input type="password" id="cfg-token" placeholder="github_pat_...">
+      <p class="helptext">Il token resta salvato solo su questo dispositivo/browser, non viene condiviso altrove.</p>
+    </div>
+    <div id="setup-error"></div>
+    <button class="primary" id="cfg-save" style="width:100%; justify-content:center; margin-top:6px;">Connetti</button>
+  </div>
+</div>
+
+<div id="app" class="wrap hidden">
+  <h1>🫙 Le mie marmellate</h1>
+  <p class="subtitle" id="repo-label"></p>
+
+  <div class="section-head">
+    <p class="section-title">I tuoi lotti</p>
+    <div class="top-actions">
+      <button id="backup-btn-top"><span aria-hidden="true">⬇</span> Scarica backup</button>
+      <button id="restore-btn-top"><span aria-hidden="true">⬆</span> Carica backup</button>
+      <input type="file" id="restore-file" accept="application/json" class="hidden">
+    </div>
+  </div>
+  <div class="card" id="lotti-table" style="margin-bottom:18px;"></div>
+  <div id="restore-msg"></div>
+
+  <div class="panel form-row" style="margin-bottom:26px;">
+    <div class="field" style="width:130px;"><label class="field-lbl">Tipologia</label><input type="text" id="nl-tipo" placeholder="es. Fichi"></div>
+    <div class="field" style="width:130px;"><label class="field-lbl">Produttore</label><input type="text" id="nl-prod" placeholder="es. Nonna Ada"></div>
+    <div class="field" style="width:80px;"><label class="field-lbl">Quantità</label><input type="number" id="nl-qta" placeholder="9"></div>
+    <div class="field" style="width:150px;"><label class="field-lbl">Data produzione</label><input type="date" id="nl-data"></div>
+    <div class="field"><label class="field-lbl">Colore</label><div id="color-swatches" style="display:flex; gap:5px; padding-top:4px;"></div></div>
+    <button class="primary" id="add-lotto">+ Aggiungi lotto</button>
+  </div>
+
+  <div class="section-head">
+    <p class="section-title">Vasetti in consumo</p>
+  </div>
+  <div id="undo-banner"></div>
+  <div class="jar-grid" id="jar-grid" style="margin-bottom:14px;"></div>
+  <div id="open-row"></div>
+
+  <div class="divider"></div>
+
+  <p class="section-title" style="margin-bottom:14px;">Riepilogo scorte</p>
+  <div class="charts-grid" style="margin-bottom:18px;">
+    <div>
+      <p class="chart-title">Totale — rimanenti vs consumati</p>
+      <div class="big-chart-box"><canvas id="chart-totale"></canvas></div>
+    </div>
+  </div>
+  <div class="charts-grid" id="tipo-charts" style="margin-bottom:26px;"></div>
+
+  <div class="section-head">
+    <p class="chart-title" style="text-align:left; margin:0;">Storico produzione per anno</p>
+    <div class="storico-controls">
+      <select id="storico-tipo"></select>
+      <span style="font-size:12px; color:var(--text-muted);">dal</span>
+      <select id="storico-da"></select>
+      <span style="font-size:12px; color:var(--text-muted);">al</span>
+      <select id="storico-a"></select>
+    </div>
+  </div>
+  <div class="big-chart-box" style="height:210px;"><canvas id="chart-storico"></canvas></div>
+
+  <div class="divider"></div>
+  <button class="footer-link" id="disconnect-btn">Disconnetti / cambia repository GitHub</button>
+</div>
+
+<div class="save-status hidden" id="save-status"></div>
+
+<script>
+/* ============================================================
+   CONFIGURAZIONE GITHUB
+   ============================================================ */
+const CFG_KEY = 'marmellate_gh_config';
+const DATA_PATH = 'data.json';
+let ghConfig = null;
+let ghSha = null;
+let saveTimer = null;
+
+function loadConfig(){
+  try{
+    const raw = localStorage.getItem(CFG_KEY);
+    return raw ? JSON.parse(raw) : null;
+  }catch(e){ return null; }
+}
+function saveConfig(cfg){ localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
+function clearConfig(){ localStorage.removeItem(CFG_KEY); }
+
+function apiUrl(){
+  return `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${DATA_PATH}`;
+}
+function authHeaders(){
+  return {
+    'Authorization': `Bearer ${ghConfig.token}`,
+    'Accept': 'application/vnd.github+json'
+  };
+}
+function b64EncodeUnicode(str){
+  return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (m,p1)=>String.fromCharCode('0x'+p1)));
+}
+function b64DecodeUnicode(str){
+  return decodeURIComponent(atob(str.replace(/\s/g,'')).split('').map(c=>'%'+('00'+c.charCodeAt(0).toString(16)).slice(-2)).join(''));
+}
+
+async function ghLoad(){
+  const res = await fetch(apiUrl(), { headers: authHeaders() });
+  if(res.status === 404){
+    ghSha = null;
+    return { lotti: [], vasetti: [] };
+  }
+  if(res.status === 401 || res.status === 403){
+    throw new Error('AUTH');
+  }
+  if(!res.ok) throw new Error('LOAD_'+res.status);
+  const json = await res.json();
+  ghSha = json.sha;
+  const decoded = b64DecodeUnicode(json.content);
+  return JSON.parse(decoded);
+}
+
+async function ghSave(payload){
+  const body = {
+    message: 'Aggiornamento dati — ' + new Date().toLocaleString('it-IT'),
+    content: b64EncodeUnicode(JSON.stringify(payload, null, 2))
+  };
+  if(ghSha) body.sha = ghSha;
+  const res = await fetch(apiUrl(), {
+    method:'PUT',
+    headers: { ...authHeaders(), 'Content-Type':'application/json' },
+    body: JSON.stringify(body)
+  });
+  if(res.status === 409){
+    // sha non più valido: ricarico e ritento una volta
+    const fresh = await fetch(apiUrl(), { headers: authHeaders() });
+    if(fresh.ok){
+      const freshJson = await fresh.json();
+      ghSha = freshJson.sha;
+      body.sha = ghSha;
+      const retry = await fetch(apiUrl(), { method:'PUT', headers:{...authHeaders(),'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      if(!retry.ok) throw new Error('SAVE_CONFLICT');
+      const retryJson = await retry.json();
+      ghSha = retryJson.content.sha;
+      return;
+    }
+    throw new Error('SAVE_CONFLICT');
+  }
+  if(!res.ok) throw new Error('SAVE_'+res.status);
+  const json = await res.json();
+  ghSha = json.content.sha;
+}
+
+function setSaveStatus(state){
+  const el = document.getElementById('save-status');
+  el.classList.remove('hidden','saved','error');
+  if(state === 'saving'){ el.textContent = '● Salvataggio…'; }
+  else if(state === 'saved'){ el.textContent = '✓ Salvato'; el.classList.add('saved'); setTimeout(()=>el.classList.add('hidden'), 2000); }
+  else if(state === 'error'){ el.textContent = '⚠ Errore salvataggio, riprova'; el.classList.add('error'); }
+}
+
+function scheduleSave(){
+  clearTimeout(saveTimer);
+  setSaveStatus('saving');
+  saveTimer = setTimeout(async () => {
+    try{
+      await ghSave({ lotti, vasetti });
+      setSaveStatus('saved');
+    }catch(e){
+      setSaveStatus('error');
+      console.error(e);
+    }
+  }, 1200);
+}
+
+/* ============================================================
+   STATO APP
+   ============================================================ */
+const SWATCHES = ['#7F77DD','#D85A30','#BA7517','#639922','#378ADD','#D4537E'];
+let selColor = SWATCHES[0];
+let lotti = [];
+let vasetti = [];
+let vId = 1, lId = 1;
+let confirmingId = null;
+let confirmingLottoId = null;
+let editingLottoId = null;
+let openingPanel = false;
+let pendingRestore = null;
+let lastConsumo = null;
+let storicoTipo = 'tutte';
+let storicoDa = null, storicoA = null;
+let charts = {};
+
+function fmt(d){ return d ? new Date(d+'T00:00:00').toLocaleDateString('it-IT') : '—'; }
+function attivi(){ return lotti.filter(l => !l.archiviato); }
+function disponibili(){ return attivi().filter(l => (l.qta - l.consumati) > 0); }
+function nextLottoId(){ return lotti.reduce((m,l)=>Math.max(m,l.id),0) + 1; }
+function nextVasettoId(){ return vasetti.reduce((m,v)=>Math.max(m,v.id),0) + 1; }
+
+/* ============================================================
+   PLUGIN GRAFICO: numero al centro della ciambella
+   ============================================================ */
+const centerTextPlugin = {
+  id:'centerText',
+  afterDraw(chart){
+    if(chart.config.type !== 'doughnut') return;
+    const {ctx, chartArea} = chart;
+    const total = chart.config.data.datasets[0].data.reduce((a,b)=>a+b,0);
+    const cx = (chartArea.left + chartArea.right) / 2;
+    const cy = (chartArea.top + chartArea.bottom) / 2;
+    ctx.save();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '600 20px sans-serif'; ctx.fillStyle = '#2C2620';
+    ctx.fillText(total, cx, cy - 7);
+    ctx.font = '400 10px sans-serif'; ctx.fillStyle = '#9C917B';
+    ctx.fillText('totale', cx, cy + 11);
+    ctx.restore();
+  }
+};
+Chart.register(ChartDataLabels, centerTextPlugin);
+
+/* ============================================================
+   RENDER: LOTTI
+   ============================================================ */
+function renderLotti(){
+  const el = document.getElementById('lotti-table');
+  el.innerHTML = '';
+  const list = attivi();
+  if(list.length === 0){
+    el.innerHTML = `<p style="font-size:13px; color:var(--text-muted); margin:4px;">Nessun lotto ancora. Aggiungine uno qui sotto.</p>`;
+    return;
+  }
+  list.forEach(l => {
+    const rimasti = l.qta - l.consumati;
+    const vasettiCollegati = vasetti.filter(v => v.lottoId === l.id).length;
+
+    if(editingLottoId === l.id){
+      const box = document.createElement('div');
+      box.className = 'panel form-row';
+      box.style.margin = '4px 0';
+      box.innerHTML = `
+        <div class="field" style="width:110px;"><label class="field-lbl">Tipologia</label><input type="text" class="e-tipo" value="${escAttr(l.tipo)}"></div>
+        <div class="field" style="width:110px;"><label class="field-lbl">Produttore</label><input type="text" class="e-prod" value="${escAttr(l.prod)}"></div>
+        <div class="field" style="width:70px;"><label class="field-lbl">Quantità</label><input type="number" class="e-qta" value="${l.qta}"></div>
+        <div class="field" style="width:70px;"><label class="field-lbl">Consumati</label><input type="number" class="e-cons" value="${l.consumati}"></div>
+        <div class="field" style="width:140px;"><label class="field-lbl">Data prod.</label><input type="date" class="e-data" value="${l.data}"></div>
+        <button class="primary e-save">Salva</button>
+        <button class="e-cancel">Annulla</button>
+        <p class="helptext e-err" style="color:var(--danger-text); flex-basis:100%; margin-top:4px;"></p>
+      `;
+      box.querySelector('.e-save').addEventListener('click', () => {
+        const newQta = parseInt(box.querySelector('.e-qta').value) || 0;
+        const newCons = parseInt(box.querySelector('.e-cons').value) || 0;
+        if(newQta <= 0 || newCons < 0 || newCons > newQta){
+          box.querySelector('.e-err').textContent = `"Consumati" deve essere tra 0 e la quantità totale (${newQta}).`;
+          return;
+        }
+        l.tipo = box.querySelector('.e-tipo').value.trim() || l.tipo;
+        l.prod = box.querySelector('.e-prod').value.trim() || l.prod;
+        l.qta = newQta;
+        l.consumati = newCons;
+        l.data = box.querySelector('.e-data').value || l.data;
+        editingLottoId = null;
+        renderAll(); scheduleSave();
+      });
+      box.querySelector('.e-cancel').addEventListener('click', () => { editingLottoId = null; renderLotti(); });
+      el.appendChild(box);
+      return;
+    }
+
+    const row = document.createElement('div');
+    row.className = 'lotto-row';
+    row.innerHTML = `
+      <span class="dot" style="background:${l.color};"></span>
+      <span style="font-weight:600; min-width:90px;">${esc(l.tipo)}</span>
+      <span style="color:var(--text-secondary); min-width:100px;">${esc(l.prod)}</span>
+      <span style="color:var(--text-muted); min-width:95px;">${fmt(l.data)}</span>
+      <span style="margin-left:auto; font-weight:600;">${rimasti}<span style="color:var(--text-muted); font-weight:400;"> / ${l.qta} rimasti</span></span>
+      <button class="icon-btn edit-btn" aria-label="Modifica lotto" title="Modifica">✏️</button>
+      <button class="icon-btn danger del-btn" aria-label="Archivia lotto" title="Archivia">🗑</button>
+    `;
+    row.querySelector('.edit-btn').addEventListener('click', () => { editingLottoId = l.id; renderLotti(); });
+    row.querySelector('.del-btn').addEventListener('click', () => { confirmingLottoId = l.id; renderLotti(); });
+    el.appendChild(row);
+
+    if(confirmingLottoId === l.id){
+      const box = document.createElement('div');
+      box.className = 'confirm-box';
+      box.style.margin = '4px 0 8px';
+      box.innerHTML = `<span>Archiviare "${esc(l.tipo)} — ${esc(l.prod)}"? Sparirà dall'elenco attivo${vasettiCollegati ? ` e verranno rimossi ${vasettiCollegati} vasetti aperti collegati` : ''}, ma resterà nello storico produzione.</span>
+        <span style="display:flex; gap:6px;"><button class="lc-yes">Sì, archivia</button><button class="lc-no">Annulla</button></span>`;
+      box.querySelector('.lc-yes').addEventListener('click', () => {
+        vasetti = vasetti.filter(v => v.lottoId !== l.id);
+        l.archiviato = true;
+        confirmingLottoId = null;
+        renderAll(); scheduleSave();
+      });
+      box.querySelector('.lc-no').addEventListener('click', () => { confirmingLottoId = null; renderLotti(); });
+      el.appendChild(box);
+    }
+  });
+}
+
+/* ============================================================
+   RENDER: VASETTI
+   ============================================================ */
+function renderJars(){
+  const grid = document.getElementById('jar-grid');
+  grid.innerHTML = '';
+  vasetti.forEach(v => {
+    const l = lotti.find(x => x.id === v.lottoId);
+    if(!l) return;
+    const card = document.createElement('div');
+    card.className = 'jar-card';
+    card.style.setProperty('--card-accent', l.color);
+    card.innerHTML = `
+      <div class="jar-head">
+        <span class="pill" style="background:${l.color}22; color:${l.color};">${esc(l.tipo)} — ${esc(l.prod)}</span>
+        <button class="icon-btn danger del-btn" aria-label="Segna come consumato" title="Segna come consumato">🗑</button>
+      </div>
+      <div class="field"><label class="field-lbl">Data produzione lotto</label><span style="font-size:13px; color:var(--text-secondary);">${fmt(l.data)}</span></div>
+      <div class="field"><label class="field-lbl">Data inizio consumo</label><input type="date" class="f-start" value="${v.start}"></div>
+      <div class="field"><label class="field-lbl">Note</label><input type="text" class="f-note" value="${escAttr(v.note||'')}" placeholder="es. aperto per un ospite"></div>
+      <div class="jar-confirm"></div>
+    `;
+    card.querySelector('.f-start').addEventListener('change', e => { v.start = e.target.value; scheduleSave(); });
+    card.querySelector('.f-note').addEventListener('change', e => { v.note = e.target.value; scheduleSave(); });
+    card.querySelector('.del-btn').addEventListener('click', () => {
+      const holder = card.querySelector('.jar-confirm');
+      holder.innerHTML = `<div class="confirm-box" style="margin-top:6px;"><span>Segnare come consumato e rimuovere?</span><span style="display:flex; gap:6px;"><button class="conf-yes">Sì</button><button class="conf-no">No</button></span></div>`;
+      holder.querySelector('.conf-yes').addEventListener('click', () => {
+        l.consumati += 1;
+        vasetti = vasetti.filter(x => x.id !== v.id);
+        lastConsumo = { lottoId:l.id, vasetto:v };
+        renderAll(); scheduleSave();
+      });
+      holder.querySelector('.conf-no').addEventListener('click', () => { holder.innerHTML=''; });
+    });
+    grid.appendChild(card);
+  });
+}
+
+function renderUndoBanner(){
+  const el = document.getElementById('undo-banner');
+  if(!lastConsumo){ el.innerHTML=''; return; }
+  el.innerHTML = `<div class="notice info"><span>✓ Vasetto segnato come consumato.</span><button id="undo-btn">Annulla</button></div>`;
+  document.getElementById('undo-btn').addEventListener('click', () => {
+    const l = lotti.find(x => x.id === lastConsumo.lottoId);
+    if(l){ l.consumati = Math.max(0, l.consumati - 1); vasetti.push(lastConsumo.vasetto); }
+    lastConsumo = null;
+    renderAll(); scheduleSave();
+  });
+}
+
+/* ============================================================
+   RENDER: APRI NUOVO VASETTO
+   ============================================================ */
+function renderOpenRow(){
+  const el = document.getElementById('open-row');
+  const disp = disponibili();
+
+  if(disp.length === 0){
+    el.innerHTML = `<div class="notice info">ℹ️ ${attivi().length===0 ? 'Nessun lotto attivo: aggiungine uno sopra prima di poter aprire un vasetto.' : 'Tutti i lotti attivi sono esauriti. Aggiungine uno nuovo, o archivia quelli finiti.'}</div>`;
+    openingPanel = false;
+    return;
+  }
+  if(!openingPanel){
+    el.innerHTML = `<button class="primary" id="add-vasetto">+ Apri nuovo vasetto</button>`;
+    document.getElementById('add-vasetto').addEventListener('click', () => { openingPanel = true; renderOpenRow(); });
+    return;
+  }
+  el.innerHTML = `
+    <div class="panel form-row">
+      <div class="field" style="width:240px;">
+        <label class="field-lbl">Quale lotto stai aprendo?</label>
+        <select id="pick-lotto">${disp.map(l => `<option value="${l.id}">${esc(l.tipo)} — ${esc(l.prod)} (${fmt(l.data)}, ${l.qta-l.consumati} rimasti)</option>`).join('')}</select>
+      </div>
+      <button class="primary" id="confirm-open">Apri</button>
+      <button id="cancel-open">Annulla</button>
+    </div>
+  `;
+  document.getElementById('confirm-open').addEventListener('click', () => {
+    const lottoId = parseInt(document.getElementById('pick-lotto').value);
+    vasetti.push({ id: nextVasettoId(), lottoId, start: new Date().toISOString().slice(0,10), note:'' });
+    openingPanel = false;
+    renderAll(); scheduleSave();
+  });
+  document.getElementById('cancel-open').addEventListener('click', () => { openingPanel = false; renderOpenRow(); });
+}
+
+/* ============================================================
+   RENDER: GRAFICI
+   ============================================================ */
+function renderStoricoControls(tipiUnici, anni){
+  const selTipo = document.getElementById('storico-tipo');
+  selTipo.innerHTML = `<option value="tutte">Tutte le tipologie</option>` + tipiUnici.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  selTipo.value = tipiUnici.includes(storicoTipo) || storicoTipo==='tutte' ? storicoTipo : 'tutte';
+  selTipo.onchange = () => { storicoTipo = selTipo.value; renderCharts(); };
+
+  if(storicoDa === null || !anni.includes(storicoDa)) storicoDa = anni[Math.max(0, anni.length-5)];
+  if(storicoA === null || !anni.includes(storicoA)) storicoA = anni[anni.length-1];
+
+  const selDa = document.getElementById('storico-da');
+  const selA = document.getElementById('storico-a');
+  selDa.innerHTML = anni.map(a => `<option value="${a}">${a}</option>`).join('');
+  selA.innerHTML = anni.map(a => `<option value="${a}">${a}</option>`).join('');
+  selDa.value = storicoDa; selA.value = storicoA;
+  selDa.onchange = () => { storicoDa = parseInt(selDa.value); if(storicoDa > storicoA) storicoA = storicoDa; renderCharts(); };
+  selA.onchange = () => { storicoA = parseInt(selA.value); if(storicoA < storicoDa) storicoDa = storicoA; renderCharts(); };
+}
+
+function renderCharts(){
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+
+  const chartTotaleEl = document.getElementById('chart-totale');
+  const tipoWrap = document.getElementById('tipo-charts');
+  const storicoEl = document.getElementById('chart-storico');
+
+  if(lotti.length === 0){
+    tipoWrap.innerHTML = '';
+    return;
+  }
+
+  const attiviLotti = attivi();
+  const totRimasti = attiviLotti.reduce((s,l)=>s+(l.qta-l.consumati),0);
+  const totConsumati = attiviLotti.reduce((s,l)=>s+l.consumati,0);
+  const muted = '#6E6353';
+  const grid = '#E4DBC9';
+
+  const cfg = (labels, data, colors) => ({
+    type:'doughnut',
+    data:{ labels, datasets:[{ data, backgroundColor: colors, borderWidth:0 }] },
+    options:{
+      cutout:'62%',
+      plugins:{
+        legend:{ position:'bottom', labels:{ font:{size:10}, boxWidth:9, color: muted } },
+        datalabels:{
+          color: (ctx) => { const bg = ctx.dataset.backgroundColor[ctx.dataIndex]; return bg && bg.length === 9 ? muted : '#ffffff'; },
+          font:{ size:12, weight:500 },
+          formatter: v => v > 0 ? v : ''
+        }
+      },
+      maintainAspectRatio:false
+    }
+  });
+
+  if(totRimasti + totConsumati > 0){
+    charts.totale = new Chart(chartTotaleEl, cfg(['Rimanenti','Consumati'], [totRimasti, totConsumati], ['#97C459','#D3D1C7']));
+  }
+
+  const tipiAttivi = [...new Set(attiviLotti.map(l => l.tipo))];
+  tipoWrap.innerHTML = '';
+  tipiAttivi.forEach(tipo => {
+    const lottiDelTipo = attiviLotti.filter(l => l.tipo === tipo);
+    const labels = lottiDelTipo.map(l => `${l.prod} (${fmt(l.data)})`);
+    const data = lottiDelTipo.map(l => l.qta - l.consumati);
+    const colors = lottiDelTipo.map(l => l.color);
+    const totConsTipo = lottiDelTipo.reduce((s,l)=>s+l.consumati,0);
+    if(totConsTipo > 0){ labels.push('Consumati'); data.push(totConsTipo); colors.push('#D3D1C7'); }
+    const box = document.createElement('div');
+    box.innerHTML = `<p class="chart-title">${esc(tipo)}</p><div class="chart-box"><canvas></canvas></div>`;
+    tipoWrap.appendChild(box);
+    charts['tipo-'+tipo] = new Chart(box.querySelector('canvas'), cfg(labels, data, colors));
+  });
+
+  const tipiTutti = [...new Set(lotti.map(l => l.tipo))];
+  const anniTutti = [...new Set(lotti.map(l => new Date(l.data+'T00:00:00').getFullYear()))].sort();
+  renderStoricoControls(tipiTutti, anniTutti);
+
+  const anniVisibili = anniTutti.filter(a => a >= storicoDa && a <= storicoA);
+  const tipiDaMostrare = storicoTipo === 'tutte' ? tipiTutti : [storicoTipo];
+  charts.storico = new Chart(storicoEl, {
+    type:'line',
+    data:{
+      labels: anniVisibili,
+      datasets: tipiDaMostrare.map(tipo => ({
+        label: tipo,
+        data: anniVisibili.map(a => lotti.filter(l => l.tipo===tipo && new Date(l.data+'T00:00:00').getFullYear()===a).reduce((s,l)=>s+l.qta,0)),
+        borderColor: lotti.find(l=>l.tipo===tipo).color,
+        backgroundColor: lotti.find(l=>l.tipo===tipo).color,
+        tension:.3, pointRadius:4, pointHoverRadius:5, borderWidth:2
+      }))
+    },
+    options:{
+      maintainAspectRatio:false,
+      plugins:{
+        legend:{ display: storicoTipo==='tutte', position:'bottom', labels:{ font:{size:11}, boxWidth:10, color: muted } },
+        datalabels:{ color: muted, font:{size:10, weight:500}, align:'top', formatter: v => v>0?v:'' }
+      },
+      scales:{
+        x:{ grid:{ display:false }, ticks:{ color: muted, font:{size:12} } },
+        y:{ beginAtZero:true, ticks:{ stepSize:2, color: muted, font:{size:11} }, grid:{ color: grid } }
+      }
+    }
+  });
+}
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function esc(str){ return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function escAttr(str){ return esc(str); }
+
+function renderAll(){ renderLotti(); renderJars(); renderOpenRow(); renderUndoBanner(); renderCharts(); }
+
+/* ============================================================
+   AZIONI
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+
+  document.getElementById('add-lotto').addEventListener('click', () => {
+    const tipo = document.getElementById('nl-tipo').value.trim();
+    const prod = document.getElementById('nl-prod').value.trim();
+    const qta = parseInt(document.getElementById('nl-qta').value) || 0;
+    const data = document.getElementById('nl-data').value;
+    if(!tipo || !prod || !qta || qta <= 0 || !data) return;
+    lotti.push({ id: nextLottoId(), tipo, prod, qta, data, color: selColor, consumati:0, archiviato:false });
+    document.getElementById('nl-tipo').value = '';
+    document.getElementById('nl-prod').value = '';
+    document.getElementById('nl-qta').value = '';
+    document.getElementById('nl-data').value = '';
+    renderAll(); scheduleSave();
+  });
+
+  const sw = document.getElementById('color-swatches');
+  SWATCHES.forEach((c,i) => {
+    const el = document.createElement('div');
+    el.className = 'swatch' + (i===0?' active':'');
+    el.style.background = c;
+    el.addEventListener('click', () => { document.querySelectorAll('.swatch').forEach(s=>s.classList.remove('active')); el.classList.add('active'); selColor = c; });
+    sw.appendChild(el);
+  });
+
+  function scaricaBackup(){
+    const payload = JSON.stringify({ lotti, vasetti }, null, 2);
+    const blob = new Blob([payload], { type:'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'marmellate-backup.json'; a.click();
+    URL.revokeObjectURL(url);
+  }
+  document.getElementById('backup-btn-top').addEventListener('click', scaricaBackup);
+
+  document.getElementById('restore-btn-top').addEventListener('click', () => document.getElementById('restore-file').click());
+  document.getElementById('restore-file').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try{
+        const parsed = JSON.parse(evt.target.result);
+        if(!Array.isArray(parsed.lotti) || !Array.isArray(parsed.vasetti)) throw new Error('formato non valido');
+        pendingRestore = parsed;
+        const msg = document.getElementById('restore-msg');
+        msg.innerHTML = `<div class="notice warning"><span>⚠ Sostituire tutti i dati attuali con questo backup (${parsed.lotti.length} lotti, ${parsed.vasetti.length} vasetti in consumo)? I dati attuali andranno persi.</span><span style="display:flex; gap:6px;"><button id="restore-yes">Sì, sostituisci</button><button id="restore-no">Annulla</button></span></div>`;
+        document.getElementById('restore-yes').addEventListener('click', async () => {
+          lotti = pendingRestore.lotti;
+          vasetti = pendingRestore.vasetti;
+          lId = nextLottoId(); vId = nextVasettoId();
+          storicoDa = null; storicoA = null; lastConsumo = null;
+          pendingRestore = null;
+          msg.innerHTML = `<div class="notice success">✓ Backup ripristinato: ${lotti.length} lotti, ${vasetti.length} vasetti in consumo.</div>`;
+          renderAll(); scheduleSave();
+        });
+        document.getElementById('restore-no').addEventListener('click', () => { pendingRestore = null; msg.innerHTML = ''; });
+      }catch(err){
+        document.getElementById('restore-msg').innerHTML = `<div class="notice danger">File non valido, riprova con un backup scaricato da questa app.</div>`;
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  document.getElementById('disconnect-btn').addEventListener('click', () => {
+    if(confirm('Disconnettere questo dispositivo dal repository GitHub? Dovrai reinserire i dati di accesso alla prossima apertura. I dati salvati su GitHub non vengono toccati.')){
+      clearConfig();
+      location.reload();
+    }
+  });
+
+  initApp();
+});
+
+/* ============================================================
+   AVVIO / SCHERMATA CONFIGURAZIONE
+   ============================================================ */
+async function initApp(){
+  ghConfig = loadConfig();
+  if(!ghConfig){
+    showSetup();
+    return;
+  }
+  await connectAndLoad();
+}
+
+function showSetup(errorMsg){
+  document.getElementById('setup-screen').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+  const errEl = document.getElementById('setup-error');
+  errEl.innerHTML = errorMsg ? `<p class="helptext" style="color:var(--danger-text);">${esc(errorMsg)}</p>` : '';
+}
+
+async function connectAndLoad(){
+  try{
+    const data = await ghLoad();
+    lotti = data.lotti || [];
+    vasetti = data.vasetti || [];
+    lId = nextLottoId(); vId = nextVasettoId();
+    document.getElementById('setup-screen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('repo-label').textContent = `${ghConfig.owner}/${ghConfig.repo}`;
+    renderAll();
+  }catch(e){
+    if(e.message === 'AUTH'){
+      clearConfig();
+      showSetup('Token non valido o senza i permessi corretti. Riprova.');
+    } else {
+      showSetup('Impossibile connettersi al repository. Controlla nome utente e nome del repository, poi riprova.');
+    }
+  }
+}
+
+document.getElementById('cfg-save').addEventListener('click', async () => {
+  const owner = document.getElementById('cfg-owner').value.trim();
+  const repo = document.getElementById('cfg-repo').value.trim();
+  const token = document.getElementById('cfg-token').value.trim();
+  if(!owner || !repo || !token){
+    document.getElementById('setup-error').innerHTML = `<p class="helptext" style="color:var(--danger-text);">Compila tutti i campi.</p>`;
+    return;
+  }
+  ghConfig = { owner, repo, token };
+  document.getElementById('cfg-save').textContent = 'Connessione…';
+  document.getElementById('cfg-save').disabled = true;
+  await connectAndLoad();
+  document.getElementById('cfg-save').textContent = 'Connetti';
+  document.getElementById('cfg-save').disabled = false;
+  if(ghConfig) saveConfig(ghConfig);
+});
+</script>
+</body>
+</html>
