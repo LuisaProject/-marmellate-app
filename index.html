@@ -499,6 +499,9 @@ function renderUndoBanner(){
 /* ============================================================
    RENDER: APRI NUOVO VASETTO
    ============================================================ */
+let checkingBeforeOpen = false;
+let pendingLottoId = null;
+
 function renderOpenRow(){
   const el = document.getElementById('open-row');
   const disp = disponibili();
@@ -506,8 +509,56 @@ function renderOpenRow(){
   if(disp.length === 0){
     el.innerHTML = `<div class="notice info">ℹ️ ${attivi().length===0 ? 'Nessun lotto attivo: aggiungine uno sopra prima di poter aprire un vasetto.' : 'Tutti i lotti attivi sono esauriti. Aggiungine uno nuovo, o archivia quelli finiti.'}</div>`;
     openingPanel = false;
+    checkingBeforeOpen = false;
     return;
   }
+
+  if(checkingBeforeOpen){
+    const aperti = vasetti.map(v => ({ v, l: lotti.find(x => x.id === v.lottoId) })).filter(x => x.l);
+    el.innerHTML = `
+      <div class="panel">
+        <p style="font-size:13px; font-weight:600; margin:0 0 10px;">Hai già ${aperti.length} vasetto${aperti.length>1?'i':''} aperto${aperti.length>1?'i':''}. Li hai finiti?</p>
+        <div id="check-open-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;"></div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="primary" id="proceed-open">Apri comunque il nuovo</button>
+          <button id="cancel-check-open">Annulla</button>
+        </div>
+      </div>
+    `;
+    const list = document.getElementById('check-open-list');
+    aperti.forEach(({v, l}) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex; align-items:center; gap:8px; background:var(--surface); border-radius:8px; padding:8px 10px;';
+      row.innerHTML = `
+        <span class="dot" style="background:${l.color};"></span>
+        <span style="font-size:13px; flex:1;">${esc(l.tipo)} — ${esc(l.prod)} <span style="color:var(--text-muted);">(aperto il ${fmt(v.start)})</span></span>
+        <button class="close-open-btn" style="font-size:12px; padding:5px 10px;">Segna come consumato</button>
+      `;
+      row.querySelector('.close-open-btn').addEventListener('click', () => {
+        l.consumati += 1;
+        vasetti = vasetti.filter(x => x.id !== v.id);
+        lastConsumo = { lottoId:l.id, vasetto:v };
+        renderOpenRow();
+        renderLotti(); renderJars(); renderUndoBanner(); renderCharts();
+        scheduleSave();
+      });
+      list.appendChild(row);
+    });
+    document.getElementById('proceed-open').addEventListener('click', () => {
+      vasetti.push({ id: nextVasettoId(), lottoId: pendingLottoId, start: new Date().toISOString().slice(0,10), note:'' });
+      checkingBeforeOpen = false;
+      pendingLottoId = null;
+      openingPanel = false;
+      renderAll(); scheduleSave();
+    });
+    document.getElementById('cancel-check-open').addEventListener('click', () => {
+      checkingBeforeOpen = false;
+      pendingLottoId = null;
+      renderOpenRow();
+    });
+    return;
+  }
+
   if(!openingPanel){
     el.innerHTML = `<button class="primary" id="add-vasetto">+ Apri nuovo vasetto</button>`;
     document.getElementById('add-vasetto').addEventListener('click', () => { openingPanel = true; renderOpenRow(); });
@@ -525,6 +576,12 @@ function renderOpenRow(){
   `;
   document.getElementById('confirm-open').addEventListener('click', () => {
     const lottoId = parseInt(document.getElementById('pick-lotto').value);
+    if(vasetti.length > 0){
+      pendingLottoId = lottoId;
+      checkingBeforeOpen = true;
+      renderOpenRow();
+      return;
+    }
     vasetti.push({ id: nextVasettoId(), lottoId, start: new Date().toISOString().slice(0,10), note:'' });
     openingPanel = false;
     renderAll(); scheduleSave();
