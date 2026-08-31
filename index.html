@@ -159,6 +159,11 @@ input,select{
   <div class="jar-grid" id="jar-grid" style="margin-bottom:14px;"></div>
   <div id="open-row"></div>
 
+  <div class="section-head" style="margin-top:22px;">
+    <p class="section-title">Regali fatti</p>
+  </div>
+  <div class="card" id="regali-table" style="margin-bottom:18px;"></div>
+
   <div class="divider"></div>
 
   <p class="section-title" style="margin-bottom:14px;">Riepilogo scorte</p>
@@ -227,7 +232,7 @@ async function ghLoad(){
   const res = await fetch(apiUrl(), { headers: authHeaders() });
   if(res.status === 404){
     ghSha = null;
-    return { lotti: [], vasetti: [] };
+    return { lotti: [], vasetti: [], regali: [] };
   }
   if(res.status === 401 || res.status === 403){
     throw new Error('AUTH');
@@ -278,7 +283,7 @@ function scheduleSave(){
   setSaveStatus('saving');
   saveTimer = setTimeout(async () => {
     try{
-      await ghSave({ lotti, vasetti });
+      await ghSave({ lotti, vasetti, regali });
       setSaveStatus('saved');
     }catch(e){
       if(e.message === 'CONFLICT'){ setSaveStatus('conflict'); }
@@ -295,6 +300,7 @@ const SWATCHES = ['#7F77DD','#D85A30','#BA7517','#639922','#378ADD','#D4537E'];
 let selColor = SWATCHES[0];
 let lotti = [];
 let vasetti = [];
+let regali = [];
 let vId = 1, lId = 1;
 let confirmingId = null;
 let confirmingLottoId = null;
@@ -310,10 +316,11 @@ let charts = {};
 function fmt(d){ return d ? new Date(d+'T00:00:00').toLocaleDateString('it-IT') : '—'; }
 function attivi(){ return lotti.filter(l => !l.archiviato); }
 function apertiCount(lottoId){ return vasetti.filter(v => v.lottoId === lottoId).length; }
-function rimastiOf(l){ return l.qta - l.consumati - apertiCount(l.id); }
+function rimastiOf(l){ return l.qta - l.consumati - (l.regalati||0) - apertiCount(l.id); }
 function disponibili(){ return attivi().filter(l => rimastiOf(l) > 0); }
 function nextLottoId(){ return lotti.reduce((m,l)=>Math.max(m,l.id),0) + 1; }
 function nextVasettoId(){ return vasetti.reduce((m,v)=>Math.max(m,v.id),0) + 1; }
+function nextRegaloId(){ return regali.reduce((m,r)=>Math.max(m,r.id),0) + 1; }
 
 /* ============================================================
    PLUGIN GRAFICO: numero al centro della ciambella
@@ -362,6 +369,7 @@ function renderLotti(){
         <div class="field" style="width:110px;"><label class="field-lbl">Produttore</label><input type="text" class="e-prod" value="${escAttr(l.prod)}"></div>
         <div class="field" style="width:70px;"><label class="field-lbl">Quantità</label><input type="number" class="e-qta" value="${l.qta}"></div>
         <div class="field" style="width:70px;"><label class="field-lbl">Consumati</label><input type="number" class="e-cons" value="${l.consumati}"></div>
+        <div class="field" style="width:70px;"><label class="field-lbl">Regalati</label><input type="number" class="e-reg" value="${l.regalati||0}"></div>
         <div class="field" style="width:140px;"><label class="field-lbl">Data prod.</label><input type="date" class="e-data" value="${l.data}"></div>
         <div class="field"><label class="field-lbl">Colore</label><div class="e-swatches" style="display:flex; gap:5px; padding-top:4px;"></div></div>
         <button class="primary e-save">Salva</button>
@@ -383,14 +391,16 @@ function renderLotti(){
       box.querySelector('.e-save').addEventListener('click', () => {
         const newQta = parseInt(box.querySelector('.e-qta').value) || 0;
         const newCons = parseInt(box.querySelector('.e-cons').value) || 0;
-        if(newQta <= 0 || newCons < 0 || newCons > newQta){
-          box.querySelector('.e-err').textContent = `"Consumati" deve essere tra 0 e la quantità totale (${newQta}).`;
+        const newReg = parseInt(box.querySelector('.e-reg').value) || 0;
+        if(newQta <= 0 || newCons < 0 || newReg < 0 || (newCons + newReg) > newQta){
+          box.querySelector('.e-err').textContent = `"Consumati" + "Regalati" deve restare tra 0 e la quantità totale (${newQta}).`;
           return;
         }
         l.tipo = box.querySelector('.e-tipo').value.trim() || l.tipo;
         l.prod = box.querySelector('.e-prod').value.trim() || l.prod;
         l.qta = newQta;
         l.consumati = newCons;
+        l.regalati = newReg;
         l.data = box.querySelector('.e-data').value || l.data;
         l.color = editSelColor;
         editingLottoId = null;
@@ -460,7 +470,10 @@ function renderJars(){
     card.innerHTML = `
       <div class="jar-head">
         <span class="pill" style="background:${l.color}22; color:${l.color};">${esc(l.tipo)} — ${esc(l.prod)}</span>
-        <button class="icon-btn danger del-btn" aria-label="Segna come consumato" title="Segna come consumato">🗑</button>
+        <span style="display:flex; gap:2px;">
+          <button class="icon-btn gift-btn" aria-label="Segna come regalato" title="Segna come regalato">🎁</button>
+          <button class="icon-btn danger del-btn" aria-label="Segna come consumato" title="Segna come consumato">🗑</button>
+        </span>
       </div>
       <div class="field"><label class="field-lbl">Data produzione lotto</label><span style="font-size:13px; color:var(--text-secondary);">${fmt(l.data)}</span></div>
       <div class="field"><label class="field-lbl">Data inizio consumo</label><input type="date" class="f-start" value="${v.start}"></div>
@@ -475,10 +488,31 @@ function renderJars(){
       holder.querySelector('.conf-yes').addEventListener('click', () => {
         l.consumati += 1;
         vasetti = vasetti.filter(x => x.id !== v.id);
-        lastConsumo = { lottoId:l.id, vasetto:v };
+        lastConsumo = { tipo:'consumato', lottoId:l.id, vasetto:v };
         renderAll(); scheduleSave();
       });
       holder.querySelector('.conf-no').addEventListener('click', () => { holder.innerHTML=''; });
+    });
+    card.querySelector('.gift-btn').addEventListener('click', () => {
+      const holder = card.querySelector('.jar-confirm');
+      holder.innerHTML = `
+        <div class="confirm-box" style="margin-top:6px; background:var(--surface-alt); color:var(--text); flex-direction:column; align-items:stretch;">
+          <span style="margin-bottom:6px;">A chi lo regali?</span>
+          <input type="text" class="gift-persona" placeholder="es. Marco" style="width:100%; margin-bottom:8px;">
+          <span style="display:flex; gap:6px;"><button class="primary gift-yes">Conferma</button><button class="gift-no">Annulla</button></span>
+        </div>`;
+      const personaInput = holder.querySelector('.gift-persona');
+      personaInput.focus();
+      holder.querySelector('.gift-yes').addEventListener('click', () => {
+        const persona = personaInput.value.trim();
+        l.regalati = (l.regalati||0) + 1;
+        vasetti = vasetti.filter(x => x.id !== v.id);
+        const regalo = { id: nextRegaloId(), lottoId:l.id, persona, data: new Date().toISOString().slice(0,10) };
+        regali.push(regalo);
+        lastConsumo = { tipo:'regalato', lottoId:l.id, vasetto:v, regaloId:regalo.id };
+        renderAll(); scheduleSave();
+      });
+      holder.querySelector('.gift-no').addEventListener('click', () => { holder.innerHTML=''; });
     });
     grid.appendChild(card);
   });
@@ -487,12 +521,48 @@ function renderJars(){
 function renderUndoBanner(){
   const el = document.getElementById('undo-banner');
   if(!lastConsumo){ el.innerHTML=''; return; }
-  el.innerHTML = `<div class="notice info"><span>✓ Vasetto segnato come consumato.</span><button id="undo-btn">Annulla</button></div>`;
+  const isRegalo = lastConsumo.tipo === 'regalato';
+  let testo = '✓ Vasetto segnato come consumato.';
+  if(isRegalo){
+    const r = regali.find(x => x.id === lastConsumo.regaloId);
+    testo = `✓ Vasetto segnato come regalato${r && r.persona ? ' a ' + esc(r.persona) : ''}.`;
+  }
+  el.innerHTML = `<div class="notice info"><span>${testo}</span><button id="undo-btn">Annulla</button></div>`;
   document.getElementById('undo-btn').addEventListener('click', () => {
     const l = lotti.find(x => x.id === lastConsumo.lottoId);
-    if(l){ l.consumati = Math.max(0, l.consumati - 1); vasetti.push(lastConsumo.vasetto); }
+    if(l){
+      if(isRegalo){
+        l.regalati = Math.max(0, (l.regalati||0) - 1);
+        regali = regali.filter(x => x.id !== lastConsumo.regaloId);
+      } else {
+        l.consumati = Math.max(0, l.consumati - 1);
+      }
+      vasetti.push(lastConsumo.vasetto);
+    }
     lastConsumo = null;
     renderAll(); scheduleSave();
+  });
+}
+
+function renderRegali(){
+  const el = document.getElementById('regali-table');
+  if(!el) return;
+  if(regali.length === 0){
+    el.innerHTML = `<p style="font-size:13px; color:var(--text-muted); margin:4px;">Nessun regalo ancora registrato.</p>`;
+    return;
+  }
+  el.innerHTML = '';
+  [...regali].reverse().forEach(r => {
+    const l = lotti.find(x => x.id === r.lottoId);
+    const row = document.createElement('div');
+    row.className = 'lotto-row';
+    row.innerHTML = `
+      <span class="dot" style="background:${l ? l.color : '#ccc'};"></span>
+      <span style="font-weight:600; min-width:90px;">${esc(l ? l.tipo : '—')}</span>
+      <span style="color:var(--text-secondary);">a ${esc(r.persona || 'qualcuno')}</span>
+      <span style="margin-left:auto; color:var(--text-muted);">${fmt(r.data)}</span>
+    `;
+    el.appendChild(row);
   });
 }
 
@@ -537,7 +607,7 @@ function renderOpenRow(){
       row.querySelector('.close-open-btn').addEventListener('click', () => {
         l.consumati += 1;
         vasetti = vasetti.filter(x => x.id !== v.id);
-        lastConsumo = { lottoId:l.id, vasetto:v };
+        lastConsumo = { tipo:'consumato', lottoId:l.id, vasetto:v };
         renderOpenRow();
         renderLotti(); renderJars(); renderUndoBanner(); renderCharts();
         scheduleSave();
@@ -626,6 +696,7 @@ function renderCharts(){
   const attiviLotti = attivi();
   const totRimasti = attiviLotti.reduce((s,l)=>s+rimastiOf(l),0);
   const totInConsumo = attiviLotti.reduce((s,l)=>s+apertiCount(l.id),0);
+  const totRegalati = attiviLotti.reduce((s,l)=>s+(l.regalati||0),0);
   const totConsumati = attiviLotti.reduce((s,l)=>s+l.consumati,0);
   const muted = '#6E6353';
   const grid = '#E4DBC9';
@@ -647,8 +718,8 @@ function renderCharts(){
     }
   });
 
-  if(totRimasti + totInConsumo + totConsumati > 0){
-    charts.totale = new Chart(chartTotaleEl, cfg(['Rimanenti','In consumo','Consumati'], [totRimasti, totInConsumo, totConsumati], ['#97C459','#E0A62E','#D3D1C7']));
+  if(totRimasti + totInConsumo + totRegalati + totConsumati > 0){
+    charts.totale = new Chart(chartTotaleEl, cfg(['Rimanenti','In consumo','Regalati','Consumati'], [totRimasti, totInConsumo, totRegalati, totConsumati], ['#97C459','#E0A62E','#5AA9C7','#D3D1C7']));
   }
 
   const tipiAttivi = [...new Set(attiviLotti.map(l => l.tipo))];
@@ -659,8 +730,10 @@ function renderCharts(){
     const data = lottiDelTipo.map(l => rimastiOf(l));
     const colors = lottiDelTipo.map(l => l.color);
     const totInConsTipo = lottiDelTipo.reduce((s,l)=>s+apertiCount(l.id),0);
+    const totRegTipo = lottiDelTipo.reduce((s,l)=>s+(l.regalati||0),0);
     const totConsTipo = lottiDelTipo.reduce((s,l)=>s+l.consumati,0);
     if(totInConsTipo > 0){ labels.push('In consumo'); data.push(totInConsTipo); colors.push('#E0A62E'); }
+    if(totRegTipo > 0){ labels.push('Regalati'); data.push(totRegTipo); colors.push('#5AA9C7'); }
     if(totConsTipo > 0){ labels.push('Consumati'); data.push(totConsTipo); colors.push('#D3D1C7'); }
     const box = document.createElement('div');
     box.innerHTML = `<p class="chart-title">${esc(tipo)}</p><div class="chart-box"><canvas></canvas></div>`;
@@ -706,7 +779,7 @@ function renderCharts(){
 function esc(str){ return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function escAttr(str){ return esc(str); }
 
-function renderAll(){ renderLotti(); renderJars(); renderOpenRow(); renderUndoBanner(); renderCharts(); }
+function renderAll(){ renderLotti(); renderJars(); renderOpenRow(); renderRegali(); renderUndoBanner(); renderCharts(); }
 
 /* ============================================================
    AZIONI
@@ -719,7 +792,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const qta = parseInt(document.getElementById('nl-qta').value) || 0;
     const data = document.getElementById('nl-data').value;
     if(!tipo || !prod || !qta || qta <= 0 || !data) return;
-    lotti.push({ id: nextLottoId(), tipo, prod, qta, data, color: selColor, consumati:0, archiviato:false });
+    lotti.push({ id: nextLottoId(), tipo, prod, qta, data, color: selColor, consumati:0, regalati:0, archiviato:false });
     document.getElementById('nl-tipo').value = '';
     document.getElementById('nl-prod').value = '';
     document.getElementById('nl-qta').value = '';
@@ -737,7 +810,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function scaricaBackup(){
-    const payload = JSON.stringify({ lotti, vasetti }, null, 2);
+    const payload = JSON.stringify({ lotti, vasetti, regali }, null, 2);
     const blob = new Blob([payload], { type:'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -755,12 +828,14 @@ document.addEventListener('DOMContentLoaded', () => {
       try{
         const parsed = JSON.parse(evt.target.result);
         if(!Array.isArray(parsed.lotti) || !Array.isArray(parsed.vasetti)) throw new Error('formato non valido');
+        parsed.regali = Array.isArray(parsed.regali) ? parsed.regali : [];
         pendingRestore = parsed;
         const msg = document.getElementById('restore-msg');
         msg.innerHTML = `<div class="notice warning"><span>⚠ Sostituire tutti i dati attuali con questo backup (${parsed.lotti.length} lotti, ${parsed.vasetti.length} vasetti in consumo)? I dati attuali andranno persi.</span><span style="display:flex; gap:6px;"><button id="restore-yes">Sì, sostituisci</button><button id="restore-no">Annulla</button></span></div>`;
         document.getElementById('restore-yes').addEventListener('click', async () => {
           lotti = pendingRestore.lotti;
           vasetti = pendingRestore.vasetti;
+          regali = pendingRestore.regali;
           lId = nextLottoId(); vId = nextVasettoId();
           storicoDa = null; storicoA = null; lastConsumo = null;
           pendingRestore = null;
@@ -810,6 +885,7 @@ async function connectAndLoad(){
     const data = await ghLoad();
     lotti = data.lotti || [];
     vasetti = data.vasetti || [];
+    regali = data.regali || [];
     lId = nextLottoId(); vId = nextVasettoId();
     document.getElementById('setup-screen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
