@@ -303,6 +303,7 @@ let vId = 1, lId = 1;
 let confirmingId = null;
 let confirmingLottoId = null;
 let editingLottoId = null;
+let editSelColor = null;
 let openingPanel = false;
 let pendingRestore = null;
 let lastConsumo = null;
@@ -354,6 +355,7 @@ function renderLotti(){
     const vasettiCollegati = vasetti.filter(v => v.lottoId === l.id).length;
 
     if(editingLottoId === l.id){
+      if(editSelColor === null) editSelColor = l.color;
       const box = document.createElement('div');
       box.className = 'panel form-row';
       box.style.margin = '4px 0';
@@ -363,10 +365,23 @@ function renderLotti(){
         <div class="field" style="width:70px;"><label class="field-lbl">Quantità</label><input type="number" class="e-qta" value="${l.qta}"></div>
         <div class="field" style="width:70px;"><label class="field-lbl">Consumati</label><input type="number" class="e-cons" value="${l.consumati}"></div>
         <div class="field" style="width:140px;"><label class="field-lbl">Data prod.</label><input type="date" class="e-data" value="${l.data}"></div>
+        <div class="field"><label class="field-lbl">Colore</label><div class="e-swatches" style="display:flex; gap:5px; padding-top:4px;"></div></div>
         <button class="primary e-save">Salva</button>
         <button class="e-cancel">Annulla</button>
         <p class="helptext e-err" style="color:var(--danger-text); flex-basis:100%; margin-top:4px;"></p>
       `;
+      const eSw = box.querySelector('.e-swatches');
+      SWATCHES.forEach(c => {
+        const sw = document.createElement('div');
+        sw.className = 'swatch' + (c === editSelColor ? ' active' : '');
+        sw.style.background = c;
+        sw.addEventListener('click', () => {
+          editSelColor = c;
+          eSw.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+          sw.classList.add('active');
+        });
+        eSw.appendChild(sw);
+      });
       box.querySelector('.e-save').addEventListener('click', () => {
         const newQta = parseInt(box.querySelector('.e-qta').value) || 0;
         const newCons = parseInt(box.querySelector('.e-cons').value) || 0;
@@ -379,10 +394,12 @@ function renderLotti(){
         l.qta = newQta;
         l.consumati = newCons;
         l.data = box.querySelector('.e-data').value || l.data;
+        l.color = editSelColor;
         editingLottoId = null;
+        editSelColor = null;
         renderAll(); scheduleSave();
       });
-      box.querySelector('.e-cancel').addEventListener('click', () => { editingLottoId = null; renderLotti(); });
+      box.querySelector('.e-cancel').addEventListener('click', () => { editingLottoId = null; editSelColor = null; renderLotti(); });
       el.appendChild(box);
       return;
     }
@@ -398,7 +415,7 @@ function renderLotti(){
       <button class="icon-btn edit-btn" aria-label="Modifica lotto" title="Modifica">✏️</button>
       <button class="icon-btn danger del-btn" aria-label="Archivia lotto" title="Archivia">🗑</button>
     `;
-    row.querySelector('.edit-btn').addEventListener('click', () => { editingLottoId = l.id; renderLotti(); });
+    row.querySelector('.edit-btn').addEventListener('click', () => { editingLottoId = l.id; editSelColor = null; renderLotti(); });
     row.querySelector('.del-btn').addEventListener('click', () => { confirmingLottoId = l.id; renderLotti(); });
     el.appendChild(row);
 
@@ -406,11 +423,21 @@ function renderLotti(){
       const box = document.createElement('div');
       box.className = 'confirm-box';
       box.style.margin = '4px 0 8px';
-      box.innerHTML = `<span>Archiviare "${esc(l.tipo)} — ${esc(l.prod)}"? Sparirà dall'elenco attivo${vasettiCollegati ? ` e verranno rimossi ${vasettiCollegati} vasetti aperti collegati` : ''}, ma resterà nello storico produzione.</span>
-        <span style="display:flex; gap:6px;"><button class="lc-yes">Sì, archivia</button><button class="lc-no">Annulla</button></span>`;
-      box.querySelector('.lc-yes').addEventListener('click', () => {
+      box.innerHTML = `<span>Cosa vuoi fare con "${esc(l.tipo)} — ${esc(l.prod)}"?${vasettiCollegati ? ` (${vasettiCollegati} vasetti aperti collegati verranno rimossi in entrambi i casi)` : ''}</span>
+        <span style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button class="lc-archive" title="Sparisce dall'elenco attivo, ma resta nello storico produzione">Archivia</button>
+          <button class="lc-delete" style="color:var(--danger-text);" title="Sparisce del tutto, anche dallo storico">Elimina definitivamente</button>
+          <button class="lc-no">Annulla</button>
+        </span>`;
+      box.querySelector('.lc-archive').addEventListener('click', () => {
         vasetti = vasetti.filter(v => v.lottoId !== l.id);
         l.archiviato = true;
+        confirmingLottoId = null;
+        renderAll(); scheduleSave();
+      });
+      box.querySelector('.lc-delete').addEventListener('click', () => {
+        vasetti = vasetti.filter(v => v.lottoId !== l.id);
+        lotti = lotti.filter(x => x.id !== l.id);
         confirmingLottoId = null;
         renderAll(); scheduleSave();
       });
