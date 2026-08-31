@@ -251,19 +251,9 @@ async function ghSave(payload){
     body: JSON.stringify(body)
   });
   if(res.status === 409){
-    // sha non più valido: ricarico e ritento una volta
-    const fresh = await fetch(apiUrl(), { headers: authHeaders() });
-    if(fresh.ok){
-      const freshJson = await fresh.json();
-      ghSha = freshJson.sha;
-      body.sha = ghSha;
-      const retry = await fetch(apiUrl(), { method:'PUT', headers:{...authHeaders(),'Content-Type':'application/json'}, body: JSON.stringify(body) });
-      if(!retry.ok) throw new Error('SAVE_CONFLICT');
-      const retryJson = await retry.json();
-      ghSha = retryJson.content.sha;
-      return;
-    }
-    throw new Error('SAVE_CONFLICT');
+    // Qualcun altro ha salvato nel frattempo: NON sovrascrivo con i miei dati
+    // (che potrebbero non contenere le sue modifiche). Segnalo e mi fermo.
+    throw new Error('CONFLICT');
   }
   if(!res.ok) throw new Error('SAVE_'+res.status);
   const json = await res.json();
@@ -273,9 +263,14 @@ async function ghSave(payload){
 function setSaveStatus(state){
   const el = document.getElementById('save-status');
   el.classList.remove('hidden','saved','error');
-  if(state === 'saving'){ el.textContent = '● Salvataggio…'; }
-  else if(state === 'saved'){ el.textContent = '✓ Salvato'; el.classList.add('saved'); setTimeout(()=>el.classList.add('hidden'), 2000); }
-  else if(state === 'error'){ el.textContent = '⚠ Errore salvataggio, riprova'; el.classList.add('error'); }
+  if(state === 'saving'){ el.innerHTML = '● Salvataggio…'; }
+  else if(state === 'saved'){ el.innerHTML = '✓ Salvato'; el.classList.add('saved'); setTimeout(()=>el.classList.add('hidden'), 2000); }
+  else if(state === 'error'){ el.innerHTML = '⚠ Errore salvataggio, riprova'; el.classList.add('error'); }
+  else if(state === 'conflict'){
+    el.classList.add('error');
+    el.innerHTML = '⚠ Dati aggiornati altrove <button id="reload-conflict-btn" style="font-size:11px; padding:3px 8px; margin-left:4px;">Ricarica</button>';
+    document.getElementById('reload-conflict-btn').addEventListener('click', () => location.reload());
+  }
 }
 
 function scheduleSave(){
@@ -286,7 +281,8 @@ function scheduleSave(){
       await ghSave({ lotti, vasetti });
       setSaveStatus('saved');
     }catch(e){
-      setSaveStatus('error');
+      if(e.message === 'CONFLICT'){ setSaveStatus('conflict'); }
+      else { setSaveStatus('error'); }
       console.error(e);
     }
   }, 1200);
@@ -313,7 +309,9 @@ let charts = {};
 
 function fmt(d){ return d ? new Date(d+'T00:00:00').toLocaleDateString('it-IT') : '—'; }
 function attivi(){ return lotti.filter(l => !l.archiviato); }
-function disponibili(){ return attivi().filter(l => (l.qta - l.consumati) > 0); }
+function apertiCount(lottoId){ return vasetti.filter(v => v.lottoId === lottoId).length; }
+function rimastiOf(l){ return l.qta - l.consumati - apertiCount(l.id); }
+function disponibili(){ return attivi().filter(l => rimastiOf(l) > 0); }
 function nextLottoId(){ return lotti.reduce((m,l)=>Math.max(m,l.id),0) + 1; }
 function nextVasettoId(){ return vasetti.reduce((m,v)=>Math.max(m,v.id),0) + 1; }
 
@@ -351,7 +349,7 @@ function renderLotti(){
     return;
   }
   list.forEach(l => {
-    const rimasti = l.qta - l.consumati;
+    const rimasti = rimastiOf(l);
     const vasettiCollegati = vasetti.filter(v => v.lottoId === l.id).length;
 
     if(editingLottoId === l.id){
@@ -519,7 +517,7 @@ function renderOpenRow(){
     <div class="panel form-row">
       <div class="field" style="width:240px;">
         <label class="field-lbl">Quale lotto stai aprendo?</label>
-        <select id="pick-lotto">${disp.map(l => `<option value="${l.id}">${esc(l.tipo)} — ${esc(l.prod)} (${fmt(l.data)}, ${l.qta-l.consumati} rimasti)</option>`).join('')}</select>
+        <select id="pick-lotto">${disp.map(l => `<option value="${l.id}">${esc(l.tipo)} — ${esc(l.prod)} (${fmt(l.data)}, ${rimastiOf(l)} rimasti)</option>`).join('')}</select>
       </div>
       <button class="primary" id="confirm-open">Apri</button>
       <button id="cancel-open">Annulla</button>
@@ -569,7 +567,8 @@ function renderCharts(){
   }
 
   const attiviLotti = attivi();
-  const totRimasti = attiviLotti.reduce((s,l)=>s+(l.qta-l.consumati),0);
+  const totRimasti = attiviLotti.reduce((s,l)=>s+rimastiOf(l),0);
+  const totInConsumo = attiviLotti.reduce((s,l)=>s+apertiCount(l.id),0);
   const totConsumati = attiviLotti.reduce((s,l)=>s+l.consumati,0);
   const muted = '#6E6353';
   const grid = '#E4DBC9';
@@ -591,8 +590,8 @@ function renderCharts(){
     }
   });
 
-  if(totRimasti + totConsumati > 0){
-    charts.totale = new Chart(chartTotaleEl, cfg(['Rimanenti','Consumati'], [totRimasti, totConsumati], ['#97C459','#D3D1C7']));
+  if(totRimasti + totInConsumo + totConsumati > 0){
+    charts.totale = new Chart(chartTotaleEl, cfg(['Rimanenti','In consumo','Consumati'], [totRimasti, totInConsumo, totConsumati], ['#97C459','#E0A62E','#D3D1C7']));
   }
 
   const tipiAttivi = [...new Set(attiviLotti.map(l => l.tipo))];
@@ -600,9 +599,11 @@ function renderCharts(){
   tipiAttivi.forEach(tipo => {
     const lottiDelTipo = attiviLotti.filter(l => l.tipo === tipo);
     const labels = lottiDelTipo.map(l => `${l.prod} (${fmt(l.data)})`);
-    const data = lottiDelTipo.map(l => l.qta - l.consumati);
+    const data = lottiDelTipo.map(l => rimastiOf(l));
     const colors = lottiDelTipo.map(l => l.color);
+    const totInConsTipo = lottiDelTipo.reduce((s,l)=>s+apertiCount(l.id),0);
     const totConsTipo = lottiDelTipo.reduce((s,l)=>s+l.consumati,0);
+    if(totInConsTipo > 0){ labels.push('In consumo'); data.push(totInConsTipo); colors.push('#E0A62E'); }
     if(totConsTipo > 0){ labels.push('Consumati'); data.push(totConsTipo); colors.push('#D3D1C7'); }
     const box = document.createElement('div');
     box.innerHTML = `<p class="chart-title">${esc(tipo)}</p><div class="chart-box"><canvas></canvas></div>`;
